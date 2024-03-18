@@ -260,6 +260,7 @@ public:
    */
   void close();
 
+  void drop();
   /**
    * @brief 从指定文件中删除指定槽位的记录
    *
@@ -316,6 +317,7 @@ private:
   DiskBufferPool             *disk_buffer_pool_ = nullptr;
   std::unordered_set<PageNum> free_pages_;  ///< 没有填充满的页面集合
   common::Mutex               lock_;  ///< 当编译时增加-DCONCURRENCY=ON 选项时，才会真正的支持并发
+  bool TOBE_DELETE = false;
 };
 
 /**

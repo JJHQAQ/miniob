@@ -212,7 +212,7 @@ DiskBufferPool::DiskBufferPool(BufferPoolManager &bp_manager, BPFrameManager &fr
 
 DiskBufferPool::~DiskBufferPool()
 {
-  close_file();
+  // close_file();
   LOG_INFO("disk buffer pool exit");
 }
 
@@ -279,8 +279,11 @@ RC DiskBufferPool::close_file()
   }
   LOG_INFO("Successfully close file %d:%s.", file_desc_, file_name_.c_str());
   file_desc_ = -1;
-
-  bp_manager_.close_file(file_name_.c_str());
+  if (!TOBE_DELETE){
+    bp_manager_.close_file(file_name_.c_str());
+  }else{
+    bp_manager_.remove_file(file_name_.c_str());
+  }
   return RC::SUCCESS;
 }
 
@@ -724,6 +727,15 @@ RC BufferPoolManager::close_file(const char *_file_name)
 
   delete bp;
   return RC::SUCCESS;
+}
+
+RC BufferPoolManager::remove_file(const char *_file_name){
+  RC rc = close_file(_file_name);
+  int remove_ret = ::remove(_file_name);
+  if (remove_ret!=0){
+    rc = RC::IOERR_CLOSE;
+  }
+  return rc;
 }
 
 RC BufferPoolManager::flush_page(Frame &frame)

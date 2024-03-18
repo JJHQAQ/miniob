@@ -49,6 +49,7 @@ public:
    */
   RC create(int32_t table_id, const char *path, const char *name, const char *base_dir, int attribute_count,
       const AttrInfoSqlNode attributes[]);
+  RC clean(const char *path, const char *name);
 
   /**
    * 打开一个表

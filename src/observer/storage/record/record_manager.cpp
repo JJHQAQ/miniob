@@ -316,6 +316,14 @@ void RecordFileHandler::close()
   }
 }
 
+void RecordFileHandler::drop()
+{
+  if (disk_buffer_pool_ != nullptr) {
+    free_pages_.clear();
+    disk_buffer_pool_->remove_file();
+    disk_buffer_pool_ = nullptr;
+  }
+}
 RC RecordFileHandler::init_free_pages()
 {
   // 遍历当前文件上所有页面，找到没有满的页面
