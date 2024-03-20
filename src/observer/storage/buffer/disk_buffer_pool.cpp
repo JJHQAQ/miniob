@@ -282,7 +282,8 @@ RC DiskBufferPool::close_file()
   if (!TOBE_DELETE){
     bp_manager_.close_file(file_name_.c_str());
   }else{
-    bp_manager_.remove_file(file_name_.c_str());
+    string c_name{file_name_};
+    bp_manager_.remove_file(c_name.c_str());
   }
   return RC::SUCCESS;
 }
@@ -731,9 +732,15 @@ RC BufferPoolManager::close_file(const char *_file_name)
 
 RC BufferPoolManager::remove_file(const char *_file_name){
   RC rc = close_file(_file_name);
+  
+  LOG_INFO("START to remove file. : %s",_file_name);
+      
   int remove_ret = ::remove(_file_name);
   if (remove_ret!=0){
+    LOG_INFO("FAIL to remove file [ret_num:%d]. error: %s",remove_ret,strerror(errno) );
     rc = RC::IOERR_CLOSE;
+  }else{
+    LOG_INFO("Successfully close file .");
   }
   return rc;
 }

@@ -820,8 +820,9 @@ RC BplusTreeHandler::close()
 RC BplusTreeHandler::drop()
 {
   RC rc = RC::SUCCESS;
-
+  LOG_INFO("Drop indexHandler");
   if (disk_buffer_pool_ != nullptr) {
+    LOG_INFO("Drop indexHandler disk_buffer_pool_");
     disk_buffer_pool_->remove_file();
     disk_buffer_pool_->close_file();
   }

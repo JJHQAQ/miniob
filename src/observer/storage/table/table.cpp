@@ -124,9 +124,11 @@ RC Table::create(int32_t table_id, const char *path, const char *name, const cha
 
 RC Table::clean(const char *path, const char *name){
   RC rc = RC::SUCCESS;
-  
+
+  LOG_INFO("Start to drop:");
   for(Index* index:indexes_){
-      index->drop();
+    LOG_INFO("Start to drop index :%s",index->index_meta().name());
+    index->drop();
   }
 
   record_handler_->drop();
