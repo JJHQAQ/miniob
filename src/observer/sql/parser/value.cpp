@@ -17,8 +17,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include <sstream>
+#include <regex>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -50,6 +51,10 @@ void Value::set_data(char *data, int length)
   switch (attr_type_) {
     case CHARS: {
       set_string(data, length);
+    } break;
+    case DATES: {
+      num_value_.int_value_ = *(int *)data;
+      length_               = length;
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -99,10 +104,57 @@ void Value::set_string(const char *s, int len /*= 0*/)
   length_ = str_value_.length();
 }
 
+bool Value::string_to_date()const {
+  if (attr_type_ != CHARS){
+    return false;
+  }
+  try{
+  std::regex pattern("\\d{4}-\\d{2}-\\d{2}");
+
+  if (!std::regex_match(str_value_,pattern)){
+    return false;
+  }
+  }catch(const std::regex_error& e){
+    return false;
+  }
+
+  int year = (str_value_[0]-'0')*1000+(str_value_[1]-'0')*100+(str_value_[2]-'0')*10+(str_value_[3]-'0');
+  int month = (str_value_[5]-'0')*10+(str_value_[6]-'0');
+  int day = (str_value_[8]-'0')*10+(str_value_[9]-'0');
+
+  if (year<1900||year>9999 || (month<=0 || month>12)|| (day<=0 || day>31)){
+    return false;
+  }
+
+  int max_day_in_month[] = {31,29,31,30,31,30,31,31,30,31,30,31};
+  const int max_day = max_day_in_month[month-1];
+  if (day>max_day){
+    return false;
+  }
+
+  if (month ==2){
+    bool leap_year = false;
+    if ((year%4==0 && year%100!=0)||year%400==0){
+      leap_year = true;
+    }
+    if (!leap_year&&day>28){
+      return false;
+    }
+  }
+
+  attr_type_ = DATES;
+  num_value_.int_value_ = year*10000+month*100+day;
+
+  return true;
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
     case INTS: {
+      set_int(value.get_int());
+    } break;
+    case DATES: {
       set_int(value.get_int());
     } break;
     case FLOATS: {
@@ -139,6 +191,9 @@ std::string Value::to_string() const
     case INTS: {
       os << num_value_.int_value_;
     } break;
+    case DATES: {
+      os << num_value_.int_value_/10000<<"-"<<num_value_.int_value_/100%100<<"-"<<num_value_.int_value_%100;
+    } break;
     case FLOATS: {
       os << common::double_to_str(num_value_.float_value_);
     } break;
@@ -159,6 +214,9 @@ int Value::compare(const Value &other) const
 {
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
+      case DATES: {
+        return common::compare_int((void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
+      } break;
       case INTS: {
         return common::compare_int((void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
       } break;
@@ -201,6 +259,9 @@ int Value::get_int() const
       }
     }
     case INTS: {
+      return num_value_.int_value_;
+    }
+    case DATES: {
       return num_value_.int_value_;
     }
     case FLOATS: {
