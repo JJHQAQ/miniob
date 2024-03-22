@@ -19,7 +19,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/calc_physical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
+#include "sql/operator/update_logical_operator.h"
 #include "sql/operator/delete_physical_operator.h"
+#include "sql/operator/update_physical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/explain_physical_operator.h"
 #include "sql/operator/index_scan_physical_operator.h"
@@ -64,6 +66,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::DELETE: {
       return create_plan(static_cast<DeleteLogicalOperator &>(logical_operator), oper);
+    } break;
+
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
     } break;
 
     case LogicalOperatorType::EXPLAIN: {
@@ -228,6 +234,30 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
   }
 
   oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table()));
+
+  if (child_physical_oper) {
+    oper->add_child(std::move(child_physical_oper));
+  }
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+    rc                          = create(*child_oper, child_physical_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),std::move(update_oper.value()),std::move(update_oper.field())));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

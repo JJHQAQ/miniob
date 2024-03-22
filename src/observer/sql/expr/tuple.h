@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "sql/parser/value.h"
 #include "storage/record/record.h"
+#include "storage/field/field.h"
 
 class Table;
 
@@ -159,6 +160,33 @@ public:
     cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
     return RC::SUCCESS;
+  }
+
+  RC update_Cell(const Field& field,const Value& value){
+    const char *table_name = field.table_name();
+    const char *field_name = field.field_name();
+    if (0 != strcmp(table_name, table_->name())) {
+      return RC::NOTFOUND;
+    }
+
+    for (size_t i = 0; i < speces_.size(); ++i) {
+      const FieldExpr *field_expr = speces_[i];
+      const Field     &field_in      = field_expr->field();
+      if (0 == strcmp(field_name, field_in.field_name())) {
+        const FieldMeta *field_meta = field_in.meta();
+        size_t           copy_len = field_meta->len();
+        if (field.attr_type() == CHARS) {
+          const size_t data_len = value.length();
+          if (copy_len > data_len) {
+            copy_len = data_len + 1;
+          }
+        }
+        memcpy(this->record_->data() + field_meta->offset(), value.data(), copy_len);
+        return RC::SUCCESS;
+      }
+    }
+
+    return RC::NOTFOUND;;
   }
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
