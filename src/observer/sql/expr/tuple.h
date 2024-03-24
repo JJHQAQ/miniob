@@ -159,6 +159,9 @@ public:
     const FieldMeta *field_meta = field_expr->field().meta();
     cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    if (field_meta->can_null()){
+      cell.set_null(this->record_->data() + field_meta->offset()+field_meta->len());
+    }
     return RC::SUCCESS;
   }
 
@@ -175,6 +178,21 @@ public:
       if (0 == strcmp(field_name, field_in.field_name())) {
         const FieldMeta *field_meta = field_in.meta();
         size_t           copy_len = field_meta->len();
+
+        if (!field_meta->can_null()&&value.is_null()){
+          LOG_WARN("field can't be null. field=%s",field_in.field_name());
+          return RC::INVALID_ARGUMENT;
+        }
+
+        if (field_meta->can_null()){
+          int is_null = value.is_null();
+          memcpy(this->record_->data() + field_meta->offset()+copy_len,(char *)(&is_null),4);
+        }
+
+        if (value.is_null()){
+          return RC::SUCCESS;
+        }
+        
         if (field.attr_type() == CHARS) {
           const size_t data_len = value.length();
           if (copy_len > data_len) {

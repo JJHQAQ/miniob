@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include <sstream>
 #include <regex>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates","floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates","null","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -68,6 +68,10 @@ void Value::set_data(char *data, int length)
       num_value_.bool_value_ = *(int *)data != 0;
       length_                = length;
     } break;
+    case Null: {
+      num_value_.int_value_ = 0;
+      length_                = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -92,6 +96,14 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_                = sizeof(val);
 }
+void Value::set_null(char *data)
+{
+  bool is_null = *(int *)data != 0;
+  if (is_null){
+    attr_type_             = Null;
+    num_value_.bool_value_ = false;
+  }
+}
 void Value::set_string(const char *s, int len /*= 0*/)
 {
   attr_type_ = CHARS;
@@ -107,6 +119,9 @@ void Value::set_string(const char *s, int len /*= 0*/)
 bool Value::string_to_date()const {
   if (attr_type_ != CHARS){
     return false;
+  }
+  if (attr_type_ == Null){
+    return true;
   }
   try{
   std::regex pattern("\\d{4}-\\d{2}-\\d{2}");
@@ -166,6 +181,10 @@ void Value::set_value(const Value &value)
     case BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
+    case Null: {
+      bool is_null = value.is_null();
+      set_null((char*)&is_null);
+    } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -178,6 +197,9 @@ const char *Value::data() const
     case CHARS: {
       return str_value_.c_str();
     } break;
+    case Null: {
+      return nullptr;
+    }break;
     default: {
       return (const char *)&num_value_;
     } break;
@@ -199,6 +221,9 @@ std::string Value::to_string() const
     } break;
     case BOOLEANS: {
       os << num_value_.bool_value_;
+    } break;
+    case Null: {
+      os << "null";
     } break;
     case CHARS: {
       os << str_value_;
@@ -232,11 +257,18 @@ int Value::compare(const Value &other) const
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
+      case Null: {
+        return 0;
+      }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
     }
-  } else if (this->attr_type_ == INTS && other.attr_type_ == FLOATS) {
+  } else if (this->attr_type_ == Null ){
+    return -1;
+  } else if (other.attr_type_ == Null ){
+    return 1;
+  }else if (this->attr_type_ == INTS && other.attr_type_ == FLOATS) {
     float this_data = this->num_value_.int_value_;
     return common::compare_float((void *)&this_data, (void *)&other.num_value_.float_value_);
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
@@ -307,6 +339,14 @@ float Value::get_float() const
 }
 
 std::string Value::get_string() const { return this->to_string(); }
+
+bool Value::is_null() const{
+  if (attr_type_==Null){
+    return true;
+  }else{
+    return false;
+  }
+}
 
 bool Value::get_boolean() const
 {

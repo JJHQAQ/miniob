@@ -295,7 +295,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
-    if (field->type() != value.attr_type()) {
+    if (field->type() != value.attr_type()&&value.attr_type()!=Null) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -310,6 +310,21 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     const FieldMeta *field    = table_meta_.field(i + normal_field_start_index);
     const Value     &value    = values[i];
     size_t           copy_len = field->len();
+
+  if (!field->can_null()&&value.is_null()){
+      LOG_WARN("field can't be null. field=%s",field->name());
+      return RC::INVALID_ARGUMENT;
+  }
+
+    if (field->can_null()){
+      int is_null = value.is_null();
+      memcpy(record_data + field->offset()+copy_len,(char *)(&is_null),4);
+    }
+
+    if (value.is_null()){
+      continue;
+    }
+
     if (field->type() == CHARS) {
       const size_t data_len = value.length();
       if (copy_len > data_len) {

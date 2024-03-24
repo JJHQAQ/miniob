@@ -47,6 +47,12 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
+  if (field_meta->can_null()){
+    LOG_WARN("can't create index on a field with null record. db=%s, table=%s, field name=%s", 
+             db->name(), table_name, create_index.attribute_name.c_str());
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  
   Index *index = table->find_index(create_index.index_name.c_str());
   if (nullptr != index) {
     LOG_WARN("index with name(%s) already exists. table name=%s", create_index.index_name.c_str(), table_name);

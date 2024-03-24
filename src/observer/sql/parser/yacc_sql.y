@@ -100,6 +100,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         NE
         IS
         NOT
+        Null_
 
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
@@ -327,6 +328,7 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->is_null = false;
       free($1);
     }
     | ID type
@@ -335,6 +337,43 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->is_null = false;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE Null_
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = $4;
+      $$->is_null = true;
+      free($1);
+    }
+    | ID type Null_
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+      $$->is_null = true;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE NOT Null_
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = $4;
+      $$->is_null = false;
+      free($1);
+    }
+    | ID type NOT Null_
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+      $$->is_null = false;
       free($1);
     }
     ;
@@ -392,6 +431,10 @@ value:
       $$ = new Value(tmp);
       free(tmp);
       free($1);
+    }
+    |Null_ {
+      $$ = new Value(AttrType::Null,nullptr,0);
+      @$ = @1;
     }
     ;
     

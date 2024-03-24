@@ -56,11 +56,18 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       values[i].string_to_date();
     }
     const AttrType   value_type = values[i].attr_type();
-    if (field_type != value_type) {  // TODO try to convert the value type to field type
+    if (field_type != value_type&&value_type != Null) {  // TODO try to convert the value type to field type
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
+
+    if (!field_meta->can_null() && value_type == Null) {
+      LOG_WARN("field type mismatch,field must not null.  table=%s, field=%s, field type=%d, value_type=%d",
+          table_name, field_meta->name(), field_type, value_type);
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;    
+    }
+
   }
 
   // everything alright
