@@ -152,6 +152,7 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_
   page_header_->record_size         = align8(record_size);
   page_header_->record_capacity     = page_record_capacity(BP_PAGE_DATA_SIZE, page_header_->record_size);
   page_header_->first_record_offset = align8(PAGE_HEADER_SIZE + page_bitmap_size(page_header_->record_capacity));
+  page_header_->is_text_page        = 0;
   this->fix_record_capacity();
   ASSERT(page_header_->first_record_offset + 
          page_header_->record_capacity * page_header_->record_size <= BP_PAGE_DATA_SIZE, "Record overflow the page size");
@@ -166,6 +167,34 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_
 
   return RC::SUCCESS;
 }
+
+RC RecordPageHandler::init_empty_text_page(DiskBufferPool &buffer_pool, PageNum page_num)
+{
+   RC ret = init(buffer_pool, page_num, false /*readonly*/);
+  if (ret != RC::SUCCESS) {
+    LOG_ERROR("Failed to init empty text page page_num %d.", page_num);
+    return ret;
+  }
+
+  page_header_->record_num          = 0;
+  page_header_->record_real_size    = 0;
+  page_header_->record_size         = 0;
+  page_header_->record_capacity     = 0;
+  page_header_->first_record_offset = align8(PAGE_HEADER_SIZE);
+  
+  page_header_->is_text_page        = 1;
+  page_header_->text_size           = 0;
+  page_header_->next_page_num       = -1;
+
+  if ((ret = buffer_pool.flush_page(*frame_)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to flush page header %d:%d.", buffer_pool.file_desc(), page_num);
+    return ret;
+  }
+
+  return RC::SUCCESS;
+
+}
+
 
 RC RecordPageHandler::cleanup()
 {
@@ -209,6 +238,35 @@ RC RecordPageHandler::insert_record(const char *data, RID *rid)
   }
 
   // LOG_TRACE("Insert record. rid page_num=%d, slot num=%d", get_page_num(), index);
+  return RC::SUCCESS;
+}
+
+RC RecordPageHandler::insert_text_record(const char *data, size_t size,RID *rid){
+  ASSERT(readonly_ == false, "cannot insert record into page while the page is readonly");
+
+  char *record_data = get_record_data(0);
+  memcpy(record_data, data, size);
+  page_header_->text_size = size;
+  page_header_->next_page_num = rid->page_num;
+
+  frame_->mark_dirty();
+
+  if (rid) {
+    rid->page_num = get_page_num();
+    rid->slot_num = 0;
+  }
+  return RC::SUCCESS;
+}
+
+PageNum RecordPageHandler::get_next_page_num(){
+  return page_header_->next_page_num;
+}
+
+RC RecordPageHandler::get_text_record_data(std::string & data){
+  char* record_data = get_record_data(0);
+  for (int i=0;i<page_header_->text_size;i++){
+      data+=record_data[i];
+  }
   return RC::SUCCESS;
 }
 
@@ -418,6 +476,83 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 
   // 找到空闲位置
   return record_page_handler.insert_record(data, rid);
+}
+
+RC RecordFileHandler::insert_text_record(const char *data, size_t text_size, RID * rid){
+  RC ret = RC::SUCCESS;
+
+  RecordPageHandler record_page_handler;
+  PageNum           current_page_num = 0;
+
+
+  std::stack<std::pair<size_t,size_t> > fragment_s;//分段  开始位置，长度
+
+  size_t total_size = 0;
+  size_t last = 0;
+  while(total_size<text_size){
+    size_t  size = std::min(text_size,total_size+(size_t)BP_PAGE_DATA_SIZE)-total_size;
+    total_size += size;
+    fragment_s.push(std::make_pair(last,size));
+    last = total_size;
+  }
+
+  rid->page_num = -1;
+  rid->slot_num = -1;
+  while(!fragment_s.empty()){
+    auto tmp = fragment_s.top();
+    fragment_s.pop();
+
+    Frame *frame = nullptr;
+    if ((ret = disk_buffer_pool_->allocate_page(&frame)) != RC::SUCCESS) {
+      LOG_ERROR("Failed to allocate page while inserting record. ret:%d", ret);
+      return ret;
+    }
+
+    current_page_num = frame->page_num();
+
+    ret = record_page_handler.init_empty_text_page(*disk_buffer_pool_, current_page_num);
+    if (ret != RC::SUCCESS) {
+      frame->unpin();
+      LOG_ERROR("Failed to init empty page. ret:%d", ret);
+      // this is for allocate_page
+      return ret;
+    }
+
+    // frame 在allocate_page的时候，是有一个pin的，在init_empty_page时又会增加一个，所以这里手动释放一个
+    frame->unpin();
+
+    LOG_ERROR("frame pin count:%d", frame->pin_count() );
+
+
+    auto start = tmp.first;
+    auto len = tmp.second;
+
+    ret = record_page_handler.insert_text_record(data+start,len,rid);
+    if (ret != RC::SUCCESS){
+      return ret;
+    }
+  }
+  
+
+  return ret;
+}
+
+RC RecordFileHandler::get_text_record(PageNum page_num,std::string &data, size_t &text_size){
+  RC ret = RC::SUCCESS;
+  auto current_page_num = page_num;
+
+  while(current_page_num!=-1){
+    RecordPageHandler record_page_handler;
+    record_page_handler.init(*disk_buffer_pool_,current_page_num,true);
+
+    current_page_num = record_page_handler.get_next_page_num();
+
+    record_page_handler.get_text_record_data(data);
+  }
+
+  text_size = data.size();
+
+  return ret;
 }
 
 RC RecordFileHandler::recover_insert_record(const char *data, int record_size, const RID &rid)

@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/latch_memo.h"
 #include <limits>
 #include <sstream>
+#include <stack>
 
 class ConditionFilter;
 class RecordPageHandler;
@@ -67,6 +68,11 @@ struct PageHeader
   int32_t record_size;          ///< 每条记录占用实际空间大小(可能对齐)
   int32_t record_capacity;      ///< 最大记录个数
   int32_t first_record_offset;  ///< 第一条记录的偏移量
+  
+  int32_t is_text_page;         ///< 是否是text类型页面
+  int32_t text_size;
+  int32_t next_page_num;
+
 };
 
 /**
@@ -153,6 +159,14 @@ public:
    */
   RC init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size);
 
+  RC init_empty_text_page(DiskBufferPool &buffer_pool, PageNum page_num);
+
+  //插入text page
+  RC insert_text_record(const char *data, size_t size,RID *rid);
+
+  PageNum get_next_page_num();
+
+  RC get_text_record_data(std::string& data);
   /**
    * @brief 操作结束后做的清理工作，比如释放页面、解锁
    */
@@ -277,6 +291,8 @@ public:
    */
   RC insert_record(const char *data, int record_size, RID *rid);
 
+  RC insert_text_record(const char *data, size_t text_size, RID* rid);
+  RC get_text_record(PageNum page_num,std::string & data, size_t &text_size);
   /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据
    *

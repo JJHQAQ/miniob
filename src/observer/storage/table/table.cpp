@@ -227,6 +227,47 @@ RC Table::insert_record(Record &record)
   }
   return rc;
 }
+RC Table::delete_text_record(PageNum page_num){
+   RC ret = RC::SUCCESS;
+
+  PageNum           current_page_num = page_num;
+  PageNum           last_page_num = -1;
+  RecordPageHandler record_page_handler;
+  while(current_page_num!=-1){
+    
+    record_page_handler.init(*data_buffer_pool_,current_page_num,false);
+
+    last_page_num = current_page_num;
+    
+    current_page_num = record_page_handler.get_next_page_num();
+
+    record_page_handler.cleanup();
+
+    data_buffer_pool_->dispose_page(last_page_num);
+  }
+
+  return ret;
+}
+
+RC Table::insert_text_record(const char* data,size_t len,RID* rid){
+  RC rc = RC::SUCCESS;
+  rc    = record_handler_->insert_text_record(data, len, rid);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Insert text record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
+RC Table::get_text_record(PageNum page_num,std::string& data,size_t& len){
+  RC rc = RC::SUCCESS;
+  rc    = record_handler_->get_text_record(page_num,data,len);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Insert text record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    return rc;
+  }
+  return rc;
+}
 
 RC Table::visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor)
 {
@@ -331,7 +372,16 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
         copy_len = data_len + 1;
       }
     }
-    memcpy(record_data + field->offset(), value.data(), copy_len);
+
+    char * v_data = const_cast<char*>(value.data());
+    RID rid;
+    if (field->type() == TEXTS) {      
+      // RC rt = 
+      insert_text_record(value.data(),value.length(),&rid);
+      v_data = (char *) &rid.page_num;
+    }
+
+    memcpy(record_data + field->offset(), v_data, copy_len);
   }
 
   record.set_data_owner(record_data, record_size);

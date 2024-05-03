@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include <sstream>
 #include <regex>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates","null","floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates","null","texts","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -49,7 +49,8 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
-    case CHARS: {
+    case CHARS: 
+    case TEXTS: {
       set_string(data, length);
     } break;
     case DATES: {
@@ -116,6 +117,35 @@ void Value::set_string(const char *s, int len /*= 0*/)
   length_ = str_value_.length();
 }
 
+RC  Value::convert_to(AttrType type) const{
+    if (attr_type_ == type){
+      return RC::SUCCESS;
+    }
+    if (attr_type_==Null){
+      return RC::SUCCESS;
+    }
+    switch(type){
+      case DATES:{
+        if (string_to_date()){
+          return RC::SUCCESS;
+        }else{
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      }break;
+      case TEXTS:{
+        if (string_to_text()){
+          return RC::SUCCESS;
+        }else{
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      }break;
+      default: {
+        return RC::UNIMPLENMENT;
+      }break;
+    }
+  return RC::SUCCESS;
+}
+
 bool Value::string_to_date()const {
   if (attr_type_ != CHARS){
     return false;
@@ -163,6 +193,21 @@ bool Value::string_to_date()const {
   return true;
 }
 
+bool Value::string_to_text()const {
+  if (attr_type_ != CHARS){
+    return false;
+  }
+  if (attr_type_ == Null){
+    return true;
+  }
+
+  if (length_>65535){
+    return false;
+  }
+  attr_type_ = TEXTS;
+  return true;
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -175,7 +220,8 @@ void Value::set_value(const Value &value)
     case FLOATS: {
       set_float(value.get_float());
     } break;
-    case CHARS: {
+    case CHARS:
+    case TEXTS: {
       set_string(value.get_string().c_str());
     } break;
     case BOOLEANS: {
@@ -185,6 +231,7 @@ void Value::set_value(const Value &value)
       bool is_null = value.is_null();
       set_null((char*)&is_null);
     } break;
+    
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -194,7 +241,8 @@ void Value::set_value(const Value &value)
 const char *Value::data() const
 {
   switch (attr_type_) {
-    case CHARS: {
+    case CHARS: 
+    case TEXTS: {
       return str_value_.c_str();
     } break;
     case Null: {
@@ -225,7 +273,8 @@ std::string Value::to_string() const
     case Null: {
       os << "null";
     } break;
-    case CHARS: {
+    case CHARS: 
+    case TEXTS: {
       os << str_value_;
     } break;
     default: {
@@ -248,7 +297,8 @@ int Value::compare(const Value &other) const
       case FLOATS: {
         return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
       } break;
-      case CHARS: {
+      case CHARS: 
+      case TEXTS: {
         return common::compare_string((void *)this->str_value_.c_str(),
             this->str_value_.length(),
             (void *)other.str_value_.c_str(),
@@ -282,7 +332,8 @@ int Value::compare(const Value &other) const
 int Value::get_int() const
 {
   switch (attr_type_) {
-    case CHARS: {
+    case CHARS: 
+    case TEXTS:{
       try {
         return (int)(std::stol(str_value_));
       } catch (std::exception const &ex) {
@@ -313,7 +364,8 @@ int Value::get_int() const
 float Value::get_float() const
 {
   switch (attr_type_) {
-    case CHARS: {
+    case CHARS: 
+    case TEXTS: {
       try {
         return std::stof(str_value_);
       } catch (std::exception const &ex) {

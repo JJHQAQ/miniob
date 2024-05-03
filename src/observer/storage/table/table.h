@@ -29,6 +29,9 @@ class IndexScanner;
 class RecordDeleter;
 class Trx;
 
+
+using PageNum = int32_t;
+
 /**
  * @brief 表
  *
@@ -73,6 +76,11 @@ public:
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
    */
   RC insert_record(Record &record);
+
+  RC delete_text_record(PageNum page_num);
+  RC insert_text_record(const char* data,size_t len,RID* rid);
+  RC get_text_record(PageNum page_num,std::string& data,size_t &len);
+  
   RC delete_record(const Record &record);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);

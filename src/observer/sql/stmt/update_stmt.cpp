@@ -53,8 +53,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
   //check whether the value_type consistent
   const AttrType   field_type = field_meta->type();
-  if (field_type == DATES){
-    update.value.string_to_date();
+
+  RC rt = update.value.convert_to(field_type);
+  if (rt!=RC::SUCCESS){
+    LOG_WARN("convert type error.");
   }
   const AttrType   value_type = update.value.attr_type();
   if (field_type != value_type) {  // TODO try to convert the value type to field type

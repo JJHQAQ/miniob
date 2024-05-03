@@ -52,8 +52,9 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType   field_type = field_meta->type();
-    if (field_type == DATES){
-      values[i].string_to_date();
+    RC rt = values[i].convert_to(field_type);
+    if (rt!=RC::SUCCESS){
+      LOG_WARN("convert type error.");
     }
     const AttrType   value_type = values[i].attr_type();
     if (field_type != value_type&&value_type != Null) {  // TODO try to convert the value type to field type

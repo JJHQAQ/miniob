@@ -35,7 +35,6 @@ struct RID
 {
   PageNum page_num;  // record's page number
   SlotNum slot_num;  // record's slot number
-
   RID() = default;
   RID(const PageNum _page_num, const SlotNum _slot_num) : page_num(_page_num), slot_num(_slot_num) {}
 

@@ -158,11 +158,37 @@ public:
     FieldExpr       *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
     cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+
+    
+    if (field_meta->type() == AttrType::TEXTS){
+      PageNum page_num= *((PageNum *)(this->record_->data() + field_meta->offset()));
+      LOG_WARN("get page_num = %d", page_num);
+      std::string res;
+      size_t len;
+      const_cast<Table*>(table_)->get_text_record(page_num,res,len);
+      cell.set_data(res.c_str(),len);
+    }else{
+      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    }
+
+
     if (field_meta->can_null()){
       cell.set_null(this->record_->data() + field_meta->offset()+field_meta->len());
     }
     return RC::SUCCESS;
+  }
+
+  RC delete_test_cell(){
+    for (size_t i = 0; i < speces_.size(); ++i) {
+      const FieldExpr *field_expr = speces_[i];
+      const Field     &field_in      = field_expr->field();
+      const FieldMeta *field_meta = field_in.meta();
+      if (field_meta->type() == TEXTS){
+        PageNum page_num= *((PageNum *)(this->record_->data() + field_meta->offset()));
+        const_cast<Table*>(table_)->delete_text_record(page_num);
+      }
+    }
+    return RC::NOTFOUND;
   }
 
   RC update_Cell(const Field& field,const Value& value){
@@ -199,12 +225,22 @@ public:
             copy_len = data_len + 1;
           }
         }
-        memcpy(this->record_->data() + field_meta->offset(), value.data(), copy_len);
+
+        char * v_data = const_cast<char*>(value.data());
+        RID rid;
+        if (field.attr_type() == TEXTS) {
+          PageNum page_num= *((PageNum *)(this->record_->data() + field_meta->offset()));
+          const_cast<Table*>(table_)->delete_text_record(page_num);
+          const_cast<Table*>(table_)->insert_text_record(value.data(),value.length(),&rid);
+          v_data = (char *) &rid.page_num;
+        }
+
+        memcpy(this->record_->data() + field_meta->offset(), v_data, copy_len);
         return RC::SUCCESS;
       }
     }
 
-    return RC::NOTFOUND;;
+    return RC::NOTFOUND;
   }
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override

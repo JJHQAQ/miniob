@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string>
+#include "common/rc.h"
 
 /**
  * @brief 属性的类型
@@ -27,6 +28,7 @@ enum AttrType
   INTS,      ///< 整数类型(4字节)
   DATES,     ///< DATE类型
   Null,      ///< NULL类型
+  TEXTS,     ///< TEXT类型
   FLOATS,    ///< 浮点数类型(4字节)
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -61,8 +63,8 @@ public:
   void set_boolean(bool val);
   void set_null(char *data);
   void set_string(const char *s, int len = 0);
-  bool string_to_date() const;
-  void set_value(const Value &value);
+  RC   convert_to(AttrType type) const;
+  void set_value(const Value &value); 
   std::string to_string() const;
 
   int compare(const Value &other) const;
@@ -82,6 +84,10 @@ public:
   std::string get_string() const;
   bool        get_boolean() const;
   bool        is_null() const;
+
+private:
+  bool string_to_date() const;
+  bool string_to_text() const;
 
 private:
   mutable AttrType attr_type_ = UNDEFINED;

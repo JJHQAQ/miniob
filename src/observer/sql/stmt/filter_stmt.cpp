@@ -127,11 +127,9 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_left(filter_obj);
   } else {
-    if (base_type==DATES){
-      bool rt = condition.left_value.string_to_date();
-      if (!rt){
-        LOG_WARN("cannot convert string to DATE");
-      }
+    RC rt = condition.left_value.convert_to(base_type);
+    if (rt!=RC::SUCCESS){
+      LOG_WARN("convert type error.");
     }
     FilterObj filter_obj;
     filter_obj.init_value(condition.left_value);
@@ -150,11 +148,9 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_right(filter_obj);
   } else {
-    if (base_type==DATES){
-      bool rt = condition.right_value.string_to_date();
-      if (!rt){
-        LOG_WARN("cannot convert string to DATE");
-      }
+    RC rt = condition.right_value.convert_to(base_type);
+    if (rt!=RC::SUCCESS){
+      LOG_WARN("convert type error.");
     }
     FilterObj filter_obj;
     filter_obj.init_value(condition.right_value);
