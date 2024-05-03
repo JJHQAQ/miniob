@@ -686,7 +686,7 @@ RC BplusTreeHandler::sync()
   return disk_buffer_pool_->flush_all_pages();
 }
 
-RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_length, int internal_max_size /* = -1*/,
+RC BplusTreeHandler::create(const char *file_name, std::vector<const FieldMeta *> fields, int internal_max_size /* = -1*/,
     int leaf_max_size /* = -1 */)
 {
   BufferPoolManager &bpm = BufferPoolManager::instance();
@@ -721,6 +721,11 @@ RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_
     bpm.close_file(file_name);
     return RC::INTERNAL;
   }
+  int attr_length = 0;
+  attr_length = fields[0]->len();
+  // for (auto field:fields){
+  //   attr_length+=field->len();
+  // }
 
   if (internal_max_size < 0) {
     internal_max_size = calc_internal_page_capacity(attr_length);
@@ -733,7 +738,7 @@ RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_
   IndexFileHeader *file_header   = (IndexFileHeader *)pdata;
   file_header->attr_length       = attr_length;
   file_header->key_length        = attr_length + sizeof(RID);
-  file_header->attr_type         = attr_type;
+  file_header->attr_type         = fields[0]->type();
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size     = leaf_max_size;
   file_header->root_page         = BP_INVALID_PAGE_NUM;

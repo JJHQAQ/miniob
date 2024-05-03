@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include <string>
+#include <vector>
 
 class TableMeta;
 class FieldMeta;
@@ -35,11 +36,11 @@ class IndexMeta
 public:
   IndexMeta() = default;
 
-  RC init(const char *name, const FieldMeta &field);
+  RC init(const char *name, std::vector<const FieldMeta*> &fields);
 
 public:
   const char *name() const;
-  const char *field() const;
+  std::vector<std::string> field() const;
 
   void desc(std::ostream &os) const;
 
@@ -49,5 +50,5 @@ public:
 
 protected:
   std::string name_;   // index's name
-  std::string field_;  // field's name
+  std::vector<std::string> fields_;  // field's name
 };

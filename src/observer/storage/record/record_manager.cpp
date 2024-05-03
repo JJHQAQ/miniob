@@ -521,7 +521,7 @@ RC RecordFileHandler::insert_text_record(const char *data, size_t text_size, RID
     // frame 在allocate_page的时候，是有一个pin的，在init_empty_page时又会增加一个，所以这里手动释放一个
     frame->unpin();
 
-    LOG_ERROR("frame pin count:%d", frame->pin_count() );
+    // LOG_ERROR("frame pin count:%d", frame->pin_count() );
 
 
     auto start = tmp.first;
