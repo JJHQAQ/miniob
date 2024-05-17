@@ -102,6 +102,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         IS
         NOT
         Null_
+        LIKE
 
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
@@ -700,6 +701,8 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | IS { $$ = EQUAL_TO; }
     | IS NOT { $$ = NOT_EQUAL; }
+    | LIKE { $$ = LIKE_TO; }
+    | NOT LIKE { $$ = NOT_LIKE; }
     ;
 
 load_data_stmt:

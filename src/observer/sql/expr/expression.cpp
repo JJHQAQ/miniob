@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
+#include <regex>
 
 using namespace std;
 
@@ -107,12 +108,23 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
+    case LIKE_TO: {
+        if (left.attr_type() != AttrType::CHARS || right.attr_type() != AttrType::CHARS) {
+            LOG_WARN("LIKE comparison requires both operands to be strings");
+            rc = RC::INVALID_ARGUMENT;
+        } else {
+            // 将SQL LIKE模式转换为正则表达式
+            std::string regex_pattern = std::regex_replace(right.get_string(), std::regex("%"), ".*");
+            regex_pattern = std::regex_replace(regex_pattern, std::regex("_"), ".");
+            std::regex pattern(regex_pattern, std::regex_constants::ECMAScript);
+            result = std::regex_match(left.get_string(), pattern);
+        }
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
     } break;
   }
-
   return rc;
 }
 
